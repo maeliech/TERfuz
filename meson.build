@@ -49,11 +49,23 @@ lt_revision = 3
 lt_age = 2
 lt_version = '@0@.@1@.@2@'.format(lt_current - lt_age, lt_age, lt_revision)
 
+want_ossfuzz = get_option('oss-fuzz')
+want_libfuzzer = get_option('llvm-fuzz')
+if want_ossfuzz and want_libfuzzer
+  error('only one of oss-fuzz and llvm-fuzz can be specified')
+endif
+fuzzer_build = want_ossfuzz or want_libfuzzer
+
+
 host_system = host_machine.system()
 
-glib_dep = dependency('glib-2.0')
+glib_dep = dependency('glib-2.0', static : get_option('static'))
 
 cc = meson.get_compiler('c')
+
+if get_option('static') == true
+  add_global_arguments('-static', language : 'c')
+endif
 
 platform_deps = []
 
@@ -113,6 +125,13 @@ if cc.has_link_argument(vflag_test)
   vflag += vflag_test
 endif
 
+if fuzzer_build
+  cargs += '-fsanitize-coverage=edge,indirect-calls,trace-cmp'
+  cargs += '-fsanitize=fuzzer-no-link'
+  vflag += '-fsanitize=fuzzer-no-link'
+  vflag += '-fsanitize-coverage=edge,indirect-calls,trace-cmp'
+endif
+
 install_devel = not meson.is_subproject()
 
 configure_file(
@@ -123,14 +142,30 @@ configure_file(
   configuration : conf
 )
 
-lib = library('slirp', sources,
-  version : lt_version,
-  c_args : cargs,
-  link_args : vflag,
-  link_depends : mapfile,
-  dependencies : [glib_dep, platform_deps],
-  install : install_devel or get_option('default_library') == 'shared',
+if fuzzer_build
+  lib = static_library('slirp', sources,
+    version : lt_version,
+    c_args : cargs,
+    link_args : vflag,
+    link_depends : mapfile,
+    dependencies : [glib_dep, platform_deps],
+  )
+else
+  lib = library('slirp', sources,
+    version : lt_version,
+    c_args : cargs,
+    link_args : vflag,
+    link_depends : mapfile,
+    dependencies : [glib_dep, platform_deps],
+    install : install_devel or get_option('default_library') == 'shared',
+  )
+endif
+
+libslirp_dep = declare_dependency(
+  link_with : lib,
+  include_directories : [include_directories('src'), include_directories('.')],
 )
+
 
 if install_devel
   install_headers(['src/libslirp.h'], subdir : 'slirp')
@@ -156,3 +191,5 @@ else
     include_directories: include_directories('.', 'src'),
     link_with: lib)
 endif
+
+subdir('fuzzing')
