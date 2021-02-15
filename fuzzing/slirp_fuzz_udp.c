@@ -4,8 +4,59 @@
 #include "../src/libslirp.h"
 #include "helper.h"
 
-#define MIN_NUMBER_OF_RUNS 1
-#define EXIT_TEST_SKIP 77
+
+int connect(int sockfd, const struct sockaddr *addr,
+            socklen_t addrlen)
+{
+    /* FIXME: fail on some addr? */
+    return 0;
+}
+
+int listen(int sockfd, int backlog)
+{
+    return 0;
+}
+
+int bind(int sockfd, const struct sockaddr *addr,
+         socklen_t addrlen)
+{
+    /* FIXME: fail on some addr? */
+    return 0;
+}
+
+ssize_t send(int sockfd, const void *buf, size_t len, int flags)
+{
+    /* FIXME: partial send? */
+    return len;
+}
+
+ssize_t sendto(int sockfd, const void *buf, size_t len, int flags,
+               const struct sockaddr *dest_addr, socklen_t addrlen)
+{
+    /* FIXME: partial send? */
+    return len;
+}
+
+ssize_t recv(int sockfd, void *buf, size_t len, int flags)
+{
+    memset(buf, 0, len);
+    return len / 2;
+}
+
+ssize_t recvfrom(int sockfd, void *buf, size_t len, int flags,
+                 struct sockaddr *src_addr, socklen_t *addrlen)
+{
+    memset(buf, 0, len);
+    *addrlen = 0;
+    return len / 2;
+}
+
+int setsockopt(int sockfd, int level, int optname,
+               const void *optval, socklen_t optlen)
+{
+    return 0;
+}
+
 
 static ssize_t send_packet(const void *pkt, size_t pkt_len, void *opaque)
 {
@@ -98,17 +149,19 @@ extern size_t LLVMFuzzerMutate(uint8_t *Data, size_t Size, size_t MaxSize);
 /// the input and fix the checksum so the packet isn't rejected for bad reasons.
 extern size_t LLVMFuzzerCustomMutator(uint8_t *Data, size_t Size, size_t MaxSize, unsigned int Seed)
 {
+    size_t i, current_size = Size;
     uint8_t *Data_ptr = Data;
+    uint8_t *ip_data;
 
     pcap_hdr_t *hdr = (void *)Data_ptr;
     pcaprec_hdr_t *rec = NULL;
 
-    if (Size < sizeof(pcap_hdr_t)) {
+    if (current_size < sizeof(pcap_hdr_t)) {
         return 0;
     }
 
     Data_ptr += sizeof(*hdr);
-    Size -= sizeof(*hdr);
+    current_size -= sizeof(*hdr);
 
     if (hdr->magic_number == 0xd4c3b2a1) {
         g_debug("FIXME: byteswap fields");
@@ -118,33 +171,47 @@ extern size_t LLVMFuzzerCustomMutator(uint8_t *Data, size_t Size, size_t MaxSize
         return 0;
     }
 
-    while (Size > sizeof(*rec)) {
+    while (current_size > sizeof(*rec)) {
         rec = (void *)Data_ptr;
         Data_ptr += sizeof(*rec);
-        Size -= sizeof(*rec);
+        current_size -= sizeof(*rec);
+
         if (rec->incl_len != rec->orig_len) {
             break;
         }
-        if (rec->incl_len > Size) {
+        if (rec->incl_len > current_size) {
             break;
         }
+        ip_data = Data_ptr + 14;
+
         // Exclude packets that are not UDP from the mutation strategy
-        if (Data_ptr[9] != IPPROTO_UDP) {
+        if (ip_data[9] != IPPROTO_UDP) {
             Data_ptr += rec->incl_len;
-            Size -= rec->incl_len;
+            current_size -= rec->incl_len;
+            continue;
+        }
+        // Allocate a bit more than needed, this is useful for
+        // checksum calculation.
+        uint8_t Data_to_mutate[MaxSize+12];
+        uint8_t ip_hl = (ip_data[0] & 0xF);
+        uint8_t ip_hl_in_bytes = ip_hl * 4;
+
+        uint8_t *start_of_udp = ip_data + ip_hl_in_bytes;
+        uint16_t udp_size = ntohs(*((uint16_t *)start_of_udp + 2));
+
+        // The size inside the packet can't be trusted, if it is too big it can 
+        // lead to heap overflows in the fuzzing code.
+        // Fixme : don't use udp_size inside the fuzzing code, maybe use the
+        //         rec->incl_len and manually calculate the size.
+        if (udp_size >= MaxSize || udp_size >= rec->incl_len) {
+            Data_ptr += rec->incl_len;
+            current_size -= rec->incl_len;
             continue;
         }
 
-        uint8_t Data_to_mutate[MaxSize];
-        uint8_t ip_hl = (Data_ptr[0] & 0xF);
-        uint8_t ip_hl_in_bytes = ip_hl * 4;
-
-        uint8_t *start_of_udp = Data_ptr + ip_hl_in_bytes;
-        uint16_t udp_size = *((uint16_t *)start_of_udp + 2);
-
         // Copy interesting data to the `Data_to_mutate` array
         // here we want to fuzz everything in the udp packet
-        memset(Data_to_mutate,0,MaxSize);
+        memset(Data_to_mutate,0,MaxSize+12);
         memcpy(Data_to_mutate,start_of_udp,udp_size);
 
         // Call to libfuzzer's mutation function.
@@ -152,21 +219,41 @@ extern size_t LLVMFuzzerCustomMutator(uint8_t *Data, size_t Size, size_t MaxSize
         // so the packet isn't rejected.
         // The new size of the data is returned by LLVMFuzzerMutate.
         // Fixme: allow to change the size of the UDP packet, this will require
-        //     to fix the size before calculating the new checksum.
-        LLVMFuzzerMutate(Data_to_mutate, udp_size, udp_size);
+        //     to fix the size before calculating the new checksum and change
+        //     how the Data_ptr is advanced.
+        //     Most offsets bellow should be good for when the switch will be
+        //     done to avoid overwriting new/mutated data.
+        size_t mutated_size = LLVMFuzzerMutate(Data_to_mutate, udp_size, udp_size);
 
         // Set the `checksum` field to 0 to calculate the new checksum
-        *((uint16_t *)Data_to_mutate + 3) = 0;
-        uint16_t new_checksum = ip_header_checksum(Data_to_mutate, udp_size);
+        *((uint16_t *)Data_to_mutate + 3) = (uint16_t)0;
+        // Copy the source and destination IP addresses, the UDP length and 
+        // protocol number at the end of the `Data_to_mutate` array to calculate
+        // the new checksum.
+        for (i = 0; i < 4; i++)
+        {   
+            *(Data_to_mutate + mutated_size + i) = *(ip_data + 12 + i);
+        }
+        for (i = 0; i < 4; i++)
+        {
+            *(Data_to_mutate + mutated_size + 4 + i) = *(ip_data + 16 + i);
+        }
+
+        *(Data_to_mutate + mutated_size + 8) = *(start_of_udp + 4);
+        *(Data_to_mutate + mutated_size + 9) = *(start_of_udp + 5);
+        // The protocol is a uint8_t, it follows a 0uint8_t for checksum 
+        // calculation.
+        *(Data_to_mutate + mutated_size + 11) = IPPROTO_UDP;
+
+        uint16_t new_checksum = compute_checksum(Data_to_mutate, mutated_size + 12);
         *((uint16_t *)Data_to_mutate + 3) = new_checksum;
 
         // Copy the mutated data back to the `Data` array
-        memcpy(start_of_udp,Data_to_mutate,udp_size);
+        memcpy(start_of_udp,Data_to_mutate,mutated_size);
 
         Data_ptr += rec->incl_len;
-        Size -= rec->incl_len;
+        current_size -= rec->incl_len;
     }
-
     return Size;
 }
 #endif //CUSTOM_MUTATOR
@@ -236,6 +323,7 @@ int LLVMFuzzerTestOneInput(uint8_t *data, size_t size)
         rec = (void *)data;
         data += sizeof(*rec);
         size -= sizeof(*rec);
+
         if (rec->incl_len != rec->orig_len) {
             g_debug("unsupported rec->incl_len != rec->orig_len");
             break;

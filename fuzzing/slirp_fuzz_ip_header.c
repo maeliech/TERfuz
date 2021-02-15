@@ -4,8 +4,59 @@
 #include "../src/libslirp.h"
 #include "helper.h"
 
-#define MIN_NUMBER_OF_RUNS 1
-#define EXIT_TEST_SKIP 77
+
+int connect(int sockfd, const struct sockaddr *addr,
+            socklen_t addrlen)
+{
+    /* FIXME: fail on some addr? */
+    return 0;
+}
+
+int listen(int sockfd, int backlog)
+{
+    return 0;
+}
+
+int bind(int sockfd, const struct sockaddr *addr,
+         socklen_t addrlen)
+{
+    /* FIXME: fail on some addr? */
+    return 0;
+}
+
+ssize_t send(int sockfd, const void *buf, size_t len, int flags)
+{
+    /* FIXME: partial send? */
+    return len;
+}
+
+ssize_t sendto(int sockfd, const void *buf, size_t len, int flags,
+               const struct sockaddr *dest_addr, socklen_t addrlen)
+{
+    /* FIXME: partial send? */
+    return len;
+}
+
+ssize_t recv(int sockfd, void *buf, size_t len, int flags)
+{
+    memset(buf, 0, len);
+    return len / 2;
+}
+
+ssize_t recvfrom(int sockfd, void *buf, size_t len, int flags,
+                 struct sockaddr *src_addr, socklen_t *addrlen)
+{
+    memset(buf, 0, len);
+    *addrlen = 0;
+    return len / 2;
+}
+
+int setsockopt(int sockfd, int level, int optname,
+               const void *optval, socklen_t optlen)
+{
+    return 0;
+}
+
 
 static ssize_t send_packet(const void *pkt, size_t pkt_len, void *opaque)
 {
@@ -99,6 +150,7 @@ extern size_t LLVMFuzzerMutate(uint8_t *Data, size_t Size, size_t MaxSize);
 extern size_t LLVMFuzzerCustomMutator(uint8_t *Data, size_t Size, size_t MaxSize, unsigned int Seed)
 {
     uint8_t *Data_ptr = Data;
+    uint8_t *ip_data;
 
     pcap_hdr_t *hdr = (void *)Data_ptr;
     pcaprec_hdr_t *rec = NULL;
@@ -127,16 +179,16 @@ extern size_t LLVMFuzzerCustomMutator(uint8_t *Data, size_t Size, size_t MaxSize
         if (rec->incl_len > Size) {
             break;
         }
-
+        ip_data = Data_ptr + 14;
         uint8_t Data_to_mutate[MaxSize];
-        uint8_t ip_hl = (Data_ptr[0] & 0xF);
+        uint8_t ip_hl = (ip_data[0] & 0xF);
         uint8_t ip_hl_in_bytes = ip_hl * 4;
 
         // Copy interesting data to the `Data_to_mutate` array
         // here we want to fuzz everything in the ip header, maybe the IPs or total
         // length should be excluded ?
         memset(Data_to_mutate,0,MaxSize);
-        memcpy(Data_to_mutate,Data_ptr,ip_hl_in_bytes);
+        memcpy(Data_to_mutate, ip_data, ip_hl_in_bytes);
 
         // Call to libfuzzer's mutation function.
         // For now we dont want to change the header size as it would require to
@@ -152,11 +204,11 @@ extern size_t LLVMFuzzerCustomMutator(uint8_t *Data, size_t Size, size_t MaxSize
         // Set the `checksum` field to 0 and calculate the new checksum
         Data_to_mutate[10] = 0;
         Data_to_mutate[11] = 0;
-        uint16_t new_checksum = ip_header_checksum(Data_to_mutate, ip_hl_in_bytes);
+        uint16_t new_checksum = compute_checksum(Data_to_mutate, ip_hl_in_bytes);
 
         // Copy the mutated data back to the `Data` array and fix the checksum value
-        memcpy(Data_ptr,Data_to_mutate,ip_hl_in_bytes);
-        *((uint16_t*)Data_ptr + 5) = new_checksum;
+        memcpy(ip_data,Data_to_mutate,ip_hl_in_bytes);
+        *((uint16_t*)ip_data + 5) = new_checksum;
 
         Data_ptr += rec->incl_len;
         Size -= rec->incl_len;

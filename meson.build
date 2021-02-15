@@ -128,8 +128,12 @@ endif
 if fuzzer_build
   cargs += '-fsanitize-coverage=edge,indirect-calls,trace-cmp'
   cargs += '-fsanitize=fuzzer-no-link'
+  cargs += '-fprofile-instr-generate'
+  cargs += '-fcoverage-mapping'
   vflag += '-fsanitize=fuzzer-no-link'
   vflag += '-fsanitize-coverage=edge,indirect-calls,trace-cmp'
+  vflag += '-fprofile-instr-generate'
+  vflag += '-fcoverage-mapping'
 endif
 
 install_devel = not meson.is_subproject()
