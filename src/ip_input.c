@@ -39,6 +39,12 @@
 #include "slirp.h"
 #include "ip_icmp.h"
 
+#if DEBUG 
+#define M_DUP_DEBUG(slirp, m, header_size) do { m = m_dup(slirp, m, header_size); } while (0)
+#else
+#define M_DUP_DEBUG(slirp, m, header_size) (void) 0
+#endif
+
 static struct ip *ip_reass(Slirp *slirp, struct ip *ip, struct ipq *fp);
 static void ip_freef(Slirp *slirp, struct ipq *fp);
 static void ip_enq(register struct ipasfrag *p, register struct ipasfrag *prev);
@@ -80,6 +86,7 @@ void ip_input(struct mbuf *m)
     DEBUG_CALL("ip_input");
     DEBUG_ARG("m = %p", m);
     DEBUG_ARG("m_len = %d", m->m_len);
+    M_DUP_DEBUG(slirp, m, sizeof(struct ip));
 
     if (m->m_len < sizeof(struct ip)) {
         goto bad;

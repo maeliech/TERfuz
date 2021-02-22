@@ -42,6 +42,12 @@
  * (to prevent allocing too many mbufs) */
 #define IF_THRESH 10
 
+#if DEBUG
+#define M_DUP_DEBUG(slirp, m, header_size) do { m = m_dup(slirp, m, header_size); } while (0)
+#else
+#define M_DUP_DEBUG(slirp, m, header_size) (void) 0
+#endif
+
 /*
  * IP output.  The packet in mbuf chain m contains a skeletal IP
  * header (with len, off, ttl, proto, tos, src, dst).
@@ -51,6 +57,8 @@
 int ip_output(struct socket *so, struct mbuf *m0)
 {
     Slirp *slirp = m0->slirp;
+    M_DUP_DEBUG(slirp, m0, IF_MAXLINKHDR);
+
     register struct ip *ip;
     register struct mbuf *m = m0;
     register int hlen = sizeof(struct ip);

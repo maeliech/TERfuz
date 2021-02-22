@@ -38,6 +38,12 @@
 #define WITH_ICMP_ERROR_MSG 0
 #endif
 
+#if DEBUG
+#define M_DUP_DEBUG(slirp, m, header_size) do { m = m_dup(slirp, m, header_size); } while (0)
+#else
+#define M_DUP_DEBUG(slirp, m, header_size) (void) 0
+#endif
+
 /* The message sent when emulating PING */
 /* Be nice and tell them it's just a pseudo-ping packet */
 static const char icmp_ping_msg[] =
@@ -136,11 +142,13 @@ void icmp_detach(struct socket *so)
  */
 void icmp_input(struct mbuf *m, int hlen)
 {
+    Slirp *slirp = m->slirp;
+    M_DUP_DEBUG(slirp, m, hlen);
+
     register struct icmp *icp;
     register struct ip *ip = mtod(m, struct ip *);
     int icmplen = ip->ip_len;
-    Slirp *slirp = m->slirp;
-
+    
     DEBUG_CALL("icmp_input");
     DEBUG_ARG("m = %p", m);
     DEBUG_ARG("m_len = %d", m->m_len);

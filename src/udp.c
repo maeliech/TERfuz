@@ -42,6 +42,12 @@
 #include "slirp.h"
 #include "ip_icmp.h"
 
+#if DEBUG
+#define M_DUP_DEBUG(slirp, m, header_size) do { m = m_dup(slirp, m, header_size); } while (0)
+#else
+#define M_DUP_DEBUG(slirp, m, header_size) (void) 0
+#endif
+
 static uint8_t udp_tos(struct socket *so);
 
 void udp_init(Slirp *slirp)
@@ -79,6 +85,7 @@ void udp_input(register struct mbuf *m, int iphlen)
     DEBUG_CALL("udp_input");
     DEBUG_ARG("m = %p", m);
     DEBUG_ARG("iphlen = %d", iphlen);
+    M_DUP_DEBUG(slirp, m, iphlen);
 
     /*
      * Strip IP options, if any; should skip this,
@@ -253,6 +260,7 @@ int udp_output(struct socket *so, struct mbuf *m, struct sockaddr_in *saddr,
     DEBUG_ARG("m = %p", m);
     DEBUG_ARG("saddr = %s", inet_ntoa(saddr->sin_addr));
     DEBUG_ARG("daddr = %s", inet_ntoa(daddr->sin_addr));
+    M_DUP_DEBUG(m->slirp, m, IF_MAXLINKHDR + sizeof(struct udpiphdr));
 
     /*
      * Adjust for header

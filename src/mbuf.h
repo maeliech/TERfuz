@@ -118,6 +118,8 @@ void m_inc(struct mbuf *, int);
 void m_adj(struct mbuf *, int);
 int m_copy(struct mbuf *, struct mbuf *, int, int);
 struct mbuf *dtom(Slirp *, void *);
+struct mbuf *m_dup(Slirp *slirp, struct mbuf *m, size_t header_size);
+
 
 static inline void ifs_init(struct mbuf *ifm)
 {

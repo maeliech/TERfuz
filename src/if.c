@@ -5,6 +5,12 @@
 
 #include "slirp.h"
 
+#if DEBUG
+#define M_DUP_DEBUG(slirp, m, header_size) do { m = m_dup(slirp, m, header_size); } while (0)
+#else
+#define M_DUP_DEBUG(slirp, m, header_size) (void) 0
+#endif
+
 static void ifs_insque(struct mbuf *ifm, struct mbuf *ifmhead)
 {
     ifm->ifs_next = ifmhead->ifs_next;
@@ -47,6 +53,7 @@ void if_output(struct socket *so, struct mbuf *ifm)
     DEBUG_CALL("if_output");
     DEBUG_ARG("so = %p", so);
     DEBUG_ARG("ifm = %p", ifm);
+    M_DUP_DEBUG(slirp, ifm, IF_MAXLINKHDR);
 
     /*
      * First remove the mbuf from m_usedlist,

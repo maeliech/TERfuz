@@ -29,12 +29,12 @@ void m_init(Slirp *slirp)
     slirp->m_usedlist.qh_link = slirp->m_usedlist.qh_rlink = &slirp->m_usedlist;
 }
 
-void m_cleanup(Slirp *slirp)
+void m_cleanup_list(struct quehead *list_head)
 {
     struct mbuf *m, *next;
 
-    m = (struct mbuf *)slirp->m_usedlist.qh_link;
-    while ((struct quehead *)m != &slirp->m_usedlist) {
+    m = (struct mbuf *)list_head->qh_link;
+    while ((struct quehead *)m != list_head) {
         next = m->m_next;
         if (m->m_flags & M_EXT) {
             g_free(m->m_ext);
@@ -42,12 +42,16 @@ void m_cleanup(Slirp *slirp)
         g_free(m);
         m = next;
     }
-    m = (struct mbuf *)slirp->m_freelist.qh_link;
-    while ((struct quehead *)m != &slirp->m_freelist) {
-        next = m->m_next;
-        g_free(m);
-        m = next;
-    }
+    list_head->qh_link = list_head;
+    list_head->qh_rlink = list_head;
+}
+
+void m_cleanup(Slirp *slirp)
+{
+    m_cleanup_list(&slirp->m_usedlist);
+    m_cleanup_list(&slirp->m_freelist);
+    m_cleanup_list(&slirp->if_batchq);
+    m_cleanup_list(&slirp->if_fastq);
 }
 
 /*
@@ -105,6 +109,7 @@ void m_free(struct mbuf *m)
         /* If it's M_EXT, free() it */
         if (m->m_flags & M_EXT) {
             g_free(m->m_ext);
+            m->m_flags &= ~M_EXT;
         }
         /*
          * Either free() it or put it on the free list
@@ -221,4 +226,24 @@ struct mbuf *dtom(Slirp *slirp, void *dat)
     DEBUG_ERROR("dtom failed");
 
     return (struct mbuf *)0;
+}
+
+struct mbuf *m_dup(Slirp *slirp, struct mbuf *m, size_t header_size) {
+    size_t headers;
+    struct mbuf *n;
+    if (m->m_flags & M_EXT)
+        headers = m->m_data - m->m_ext; 
+    else
+        headers = m->m_data - m->m_dat;
+    assert(headers >= header_size);
+    
+    n = m_get(slirp);
+    m_inc(n, m->m_len + header_size);
+    n->m_data += header_size;
+    int mcopy_result = m_copy(n,m,0,m->m_len);
+    if (mcopy_result != 0) {
+        g_assert_not_reached();
+    }
+    m_free(m);
+    return n;
 }

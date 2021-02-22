@@ -8,6 +8,12 @@
 #include "udp.h"
 #include "dhcpv6.h"
 
+#if DEBUG
+#define M_DUP_DEBUG(slirp, m, header_size) do { m = m_dup(slirp, m, header_size); } while (0)
+#else
+#define M_DUP_DEBUG(slirp, m, header_size) (void) 0
+#endif
+
 void udp6_input(struct mbuf *m)
 {
     Slirp *slirp = m->slirp;
@@ -159,6 +165,7 @@ int udp6_output(struct socket *so, struct mbuf *m, struct sockaddr_in6 *saddr,
     DEBUG_CALL("udp6_output");
     DEBUG_ARG("so = %p", so);
     DEBUG_ARG("m = %p", m);
+    M_DUP_DEBUG(m->slirp, m, IF_MAXLINKHDR + sizeof(struct udpiphdr) + sizeof(struct ip6));
 
     /* adjust for header */
     m->m_data -= sizeof(struct udphdr);

@@ -47,7 +47,7 @@ ssize_t recvfrom(int sockfd, void *buf, size_t len, int flags,
                  struct sockaddr *src_addr, socklen_t *addrlen)
 {
     memset(buf, 0, len);
-    *addrlen = 0;
+    memset(src_addr,0,*addrlen);
     return len / 2;
 }
 
@@ -344,4 +344,3 @@ int LLVMFuzzerTestOneInput(uint8_t *data, size_t size)
 
     return 0;
 }
-

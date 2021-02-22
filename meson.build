@@ -51,8 +51,12 @@ lt_version = '@0@.@1@.@2@'.format(lt_current - lt_age, lt_age, lt_revision)
 
 want_ossfuzz = get_option('oss-fuzz')
 want_libfuzzer = get_option('llvm-fuzz')
+fuzz_reproduce = get_option('fuzz-reproduce')
 if want_ossfuzz and want_libfuzzer
   error('only one of oss-fuzz and llvm-fuzz can be specified')
+endif
+if (want_libfuzzer and fuzz_reproduce) or (want_ossfuzz and fuzz_reproduce) 
+  error('fuzzer build and reproducer build are mutually exclusive')
 endif
 fuzzer_build = want_ossfuzz or want_libfuzzer
 
@@ -127,13 +131,19 @@ endif
 
 if fuzzer_build
   cargs += '-fsanitize-coverage=edge,indirect-calls,trace-cmp'
-  cargs += '-fsanitize=fuzzer-no-link'
+  cargs += '-fsanitize=fuzzer-no-link,address'
   cargs += '-fprofile-instr-generate'
   cargs += '-fcoverage-mapping'
-  vflag += '-fsanitize=fuzzer-no-link'
+  cargs += '-g'
+  #cargs += '-DDEBUG'
+  vflag += '-fsanitize=fuzzer-no-link,address'
   vflag += '-fsanitize-coverage=edge,indirect-calls,trace-cmp'
   vflag += '-fprofile-instr-generate'
   vflag += '-fcoverage-mapping'
+endif
+if fuzz_reproduce
+  cargs += '-DDEBUG'
+  cargs += '-g'
 endif
 
 install_devel = not meson.is_subproject()

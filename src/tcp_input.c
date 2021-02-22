@@ -75,6 +75,12 @@
         }                                                              \
     }
 
+#if DEBUG
+#define M_DUP_DEBUG(slirp, m, header_size) do { m = m_dup(slirp, m, header_size); } while (0)
+#else
+#define M_DUP_DEBUG(slirp, m, header_size) (void) 0
+#endif
+
 static void tcp_dooptions(struct tcpcb *tp, uint8_t *cp, int cnt,
                           struct tcpiphdr *ti);
 static void tcp_xmit_timer(register struct tcpcb *tp, int rtt);
@@ -233,6 +239,7 @@ void tcp_input(struct mbuf *m, int iphlen, struct socket *inso,
         goto cont_conn;
     }
     slirp = m->slirp;
+    //M_DUP_DEBUG(slirp, m);
 
     ip = mtod(m, struct ip *);
     ip6 = mtod(m, struct ip6 *);
