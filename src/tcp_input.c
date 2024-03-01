@@ -317,6 +317,7 @@ void tcp_input(struct mbuf *m, int iphlen, struct socket *inso,
 
     len = ((sizeof(struct tcpiphdr) - sizeof(struct tcphdr)) + tlen);
     if (cksum(m, len)) {
+    	// print the checksum
         goto drop;
     }
 

@@ -21,7 +21,7 @@ deps = [glib_dep, libslirp_dep, platform_deps]
 
 exes = [['fuzz-ip-header', ['slirp_fuzz_ip_header.c', 'helper.c']],
         ['fuzz-udp', ['slirp_fuzz_udp.c', 'helper.c']]]
-
+# [fuzz-icmp, [fuzz icmp, helper.c]] pareil pour tcp
 if fuzzer_build
   foreach exe : exes
     executable(
