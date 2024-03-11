@@ -5,6 +5,23 @@
 #include "slirp_base_fuzz.h"
 #include "helper.h"
 
+/* Structure for the fuzzers */
+typedef struct pcap_hdr_s {
+    guint32 magic_number; /* magic number */
+    guint16 version_major; /* major version number */
+    guint16 version_minor; /* minor version number */
+    gint32 thiszone; /* GMT to local correction */
+    guint32 sigfigs; /* accuracy of timestamps */
+    guint32 snaplen; /* max length of captured packets, in octets */
+    guint32 network; /* data link type */
+} pcap_hdr_t;
+
+typedef struct pcaprec_hdr_s {
+    guint32 ts_sec; /* timestamp seconds */
+    guint32 ts_usec; /* timestamp microseconds */
+    guint32 incl_len; /* number of octets of packet saved in file */
+    guint32 orig_len; /* actual length of packet */
+} pcaprec_hdr_t;
 
 #ifdef CUSTOM_MUTATOR
 extern size_t LLVMFuzzerMutate(uint8_t *Data, size_t Size, size_t MaxSize);
@@ -59,10 +76,10 @@ extern size_t LLVMFuzzerCustomMutator(uint8_t *Data, size_t Size,
         // checksum calculation.
         uint8_t Data_to_mutate[MaxSize + 12];
         uint8_t ip_hl = (ip_data[0] & 0xF);
-        uint8_t ip_hl_in_bytes = ip_hl * 4;
+        uint8_t ip_hl_in_bytes = ip_hl * 4; /* header length */
 
         uint8_t *start_of_tcp = ip_data + ip_hl_in_bytes;
-        uint16_t tcp_size = ntohs(*((uint16_t *)start_of_tcp + 2));
+        uint16_t tcp_size = (total length - ip_hl_in_bytes);
 
         // The size inside the packet can't be trusted, if it is too big it can
         // lead to heap overflows in the fuzzing code.
@@ -92,7 +109,8 @@ extern size_t LLVMFuzzerCustomMutator(uint8_t *Data, size_t Size,
             LLVMFuzzerMutate(Data_to_mutate, tcp_size, tcp_size);
 
         // Set the `checksum` field to 0 to calculate the new checksum
-        *((uint16_t *)Data_to_mutate + 3) = (uint16_t)0;
+
+        *((uint16_t *)(Data_to_mutate + 16)) = (uint16_t)0;
         // Copy the source and destination IP addresses, the tcp length and
         // protocol number at the end of the `Data_to_mutate` array to calculate
         // the new checksum.
@@ -103,16 +121,19 @@ extern size_t LLVMFuzzerCustomMutator(uint8_t *Data, size_t Size,
             *(Data_to_mutate + mutated_size + 4 + i) = *(ip_data + 16 + i);
         }
 
-        *(Data_to_mutate + mutated_size + 8) = *(start_of_tcp + 4);
-        *(Data_to_mutate + mutated_size + 9) = *(start_of_tcp + 5);
+        *(Data_to_mutate + mutated_size + 8) =
+            (tcp_size - ip_hl_in_bytes) / 256;
+        *(Data_to_mutate + mutated_size + 9) =
+            ((tcp_size - ip_hl_in_bytes) / 256) %
+            256; /* (total length - ip_hl_in_bytes )/256 %256 */
         // The protocol is a uint8_t, it follows a 0uint8_t for checksum
         // calculation.
         *(Data_to_mutate + mutated_size + 11) = IPPROTO_TCP;
 
-        /* checksum is at +16 and not +12 like in udp */
+
         uint16_t new_checksum =
-            compute_checksum(Data_to_mutate, mutated_size + 16);
-        *((uint16_t *)Data_to_mutate + 3) = new_checksum;
+            compute_checksum(Data_to_mutate, mutated_size + 12);
+        *((uint16_t *)Data_to_mutate + 8) = new_checksum;
 
         // Copy the mutated data back to the `Data` array
         memcpy(start_of_tcp, Data_to_mutate, mutated_size);

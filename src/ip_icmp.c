@@ -167,8 +167,10 @@ void icmp_input(struct mbuf *m, int hlen)
     m->m_data += hlen;
     icp = mtod(m, struct icmp *);
     if (cksum(m, icmplen)) {
+    // print checksum
         goto freeit;
     }
+    // print checksum
     m->m_len += hlen;
     m->m_data -= hlen;
 
