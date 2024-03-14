@@ -65,10 +65,10 @@ extern size_t LLVMFuzzerCustomMutator(uint8_t *Data, size_t Size,
         uint8_t ip_hl = (ip_data[0] & 0xF);
         uint8_t ip_hl_in_bytes = ip_hl * 4;
 
-        uint8_t *start_of_tcp = ip_data + ip_hl_in_bytes;
+        uint8_t *start_of_icmp = ip_data + ip_hl_in_bytes;
         uint16_t total_length =
             ntohs(*((uint16_t *)ip_data + 1)); // network order to host order
-        uint16_t tcp_size =
+        uint16_t icmp_size =
             (total_length - ip_hl_in_bytes); /* total length -> is stored at the
                                                 offset 2 in the header */
 

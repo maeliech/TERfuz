@@ -124,7 +124,7 @@ extern size_t LLVMFuzzerCustomMutator(uint8_t *Data, size_t Size,
         *(Data_to_mutate + mutated_size + 8) =
             (tcp_size - ip_hl_in_bytes) / 256;
         *(Data_to_mutate + mutated_size + 9) =
-            ((tcp_size - ip_hl_in_bytes) / 256) %
+            (tcp_size - ip_hl_in_bytes) %
             256; /* (total length - ip_hl_in_bytes )/256 %256 */
         // The protocol is a uint8_t, it follows a 0uint8_t for checksum
         // calculation.

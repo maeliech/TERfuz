@@ -1,5 +1,5 @@
 project('libslirp', 'c',
-  version : '4.0.0.158-85f3-dirty',
+  version : '4.0.0.159-d6ba-dirty',
   license : 'BSD-3-Clause',
   default_options : ['warning_level=1', 'c_std=gnu99'],
   meson_version : '>= 0.50',
@@ -158,7 +158,6 @@ configure_file(
 
 if fuzzer_build
   lib = static_library('slirp', sources,
-    version : lt_version,
     c_args : cargs,
     link_args : vflag,
     link_depends : mapfile,
@@ -207,3 +206,4 @@ else
 endif
 
 subdir('fuzzing')
+

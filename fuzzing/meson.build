@@ -37,24 +37,24 @@ if fuzz_reproduce
   executable(['reproducer', ['reproducer.c']], dependencies: deps, c_args: extra_cargs)
 endif
 
-/* Improve the usability of the fuzzers: */
+project('fuzzing', 'c')
 
-struct Command {
-    const char *build_type;
-    const char *command;
-    const char *fuzzing_input;
-};
+# Command struct definition
+command_headers = configure_file(input: 'command.h.in', output: 'command.h')
 
-struct Command commands[] = {
-    {"build_icmp", "build/fuzzing/slirp_fuzz_icmp", "fuzzing/IN_ICMP"},
-    {"build_ip", "build/fuzzing/slirp_fuzz_ip_header", "fuzzing/IN_tftp"},
-    {"build_tcp", "build/fuzzing/slirp_fuzz_tcp", "fuzzing/IN_TCP"},
-    {"build_udp", "build/fuzzing/slirp_fuzz_udp", "fuzzing/IN_UDP"}
-};
+# Define an array of commands
+commands = [
+  ['build_icmp', 'build/fuzzing/slirp_fuzz_icmp', 'fuzzing/IN_ICMP'],
+  ['build_ip', 'build/fuzzing/slirp_fuzz_ip_header', 'fuzzing/IN_tftp'],
+  ['build_tcp', 'build/fuzzing/slirp_fuzz_tcp', 'fuzzing/IN_TCP'],
+  ['build_udp', 'build/fuzzing/slirp_fuzz_udp', 'fuzzing/IN_UDP'],
+]
 
 # Iterate over the commands array and execute the appropriate command based on build type
-for (int i = 0; i < sizeof(commands) / sizeof(commands[0]); i++) {
-    if (build_enabled(commands[i].build_type)) {
-        run_command(commands[i].command, commands[i].fuzzing_input);
-    }
-}
+foreach cmd : commands
+  if get_option(cmd[0]).enabled()
+    executable(cmd[1], 'command.c', output: cmd[1])
+    run_target(cmd[0], cmd[1], args: cmd[2])
+  endif
+endforeach
+
