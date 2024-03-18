@@ -20,7 +20,10 @@ endif
 deps = [glib_dep, libslirp_dep, platform_deps]
 
 exes = [['fuzz-ip-header', ['slirp_fuzz_ip_header.c', 'helper.c']],
-        ['fuzz-udp', ['slirp_fuzz_udp.c', 'helper.c']]]
+        ['fuzz-udp', ['slirp_fuzz_udp.c', 'helper.c']],
+        ['fuzz-tcp', ['slirp_fuzz_tcp.c', 'helper.c']],
+        ['fuzz-icmp', ['slirp_fuzz_icmp.c', 'helper.c']]]
+# [fuzz-icmp, [fuzz icmp, helper.c]] pareil pour tcp
 
 if fuzzer_build
   foreach exe : exes
@@ -36,4 +39,24 @@ endif
 if fuzz_reproduce
   executable(['reproducer', ['reproducer.c']], dependencies: deps, c_args: extra_cargs)
 endif
+
+project_name = meson.project_name()
+
+
+# Command struct def
+command_headers = configure_file(input: 'command.h.in', output: 'command.h')
+
+commands = [
+  ['build_icmp', 'build/fuzzing/slirp_fuzz_icmp', 'fuzzing/IN_ICMP'],
+  ['build_ip', 'build/fuzzing/slirp_fuzz_ip_header', 'fuzzing/IN_tftp'],
+  ['build_tcp', 'build/fuzzing/slirp_fuzz_tcp', 'fuzzing/IN_TCP'],
+  ['build_udp', 'build/fuzzing/slirp_fuzz_udp', 'fuzzing/IN_UDP'],
+]
+
+foreach cmd : commands
+  if get_option(cmd[0]).enabled()
+    executable(cmd[1], 'command.c', output: cmd[1])
+    run_target(cmd[0], cmd[1], args: cmd[2])
+  endif
+endforeach
 

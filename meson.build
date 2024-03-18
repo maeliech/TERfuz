@@ -1,9 +1,12 @@
 project('libslirp', 'c',
-  version : '4.0.0.159-d6ba-dirty',
+  version : '4.0.0.160-4818-dirty',
   license : 'BSD-3-Clause',
   default_options : ['warning_level=1', 'c_std=gnu99'],
   meson_version : '>= 0.50',
 )
+
+project_name = 'MyProject'
+
 
 version = meson.project_version()
 varr = version.split('.')

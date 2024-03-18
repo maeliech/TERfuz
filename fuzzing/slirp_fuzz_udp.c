@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "../src/libslirp.h"
-#include "slirp_base_fuzz.h"
 #include "helper.h"
 
 /* Structure for the fuzzers */
