@@ -2,6 +2,7 @@
 #include <glib.h>
 #include <stdlib.h>
 #include "../src/libslirp.h"
+#include "slirp_base_fuzz.h"
 
 #define MIN_NUMBER_OF_RUNS 1
 #define EXIT_TEST_SKIP 77

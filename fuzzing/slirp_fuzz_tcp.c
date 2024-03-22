@@ -3,24 +3,8 @@
 #include <stdio.h>
 #include "../src/libslirp.h"
 #include "helper.h"
+#include "slirp_base_fuzz.h"
 
-/* Structure for the fuzzers */
-typedef struct pcap_hdr_s {
-    guint32 magic_number; /* magic number */
-    guint16 version_major; /* major version number */
-    guint16 version_minor; /* minor version number */
-    gint32 thiszone; /* GMT to local correction */
-    guint32 sigfigs; /* accuracy of timestamps */
-    guint32 snaplen; /* max length of captured packets, in octets */
-    guint32 network; /* data link type */
-} pcap_hdr_t;
-
-typedef struct pcaprec_hdr_s {
-    guint32 ts_sec; /* timestamp seconds */
-    guint32 ts_usec; /* timestamp microseconds */
-    guint32 incl_len; /* number of octets of packet saved in file */
-    guint32 orig_len; /* actual length of packet */
-} pcaprec_hdr_t;
 
 #ifdef CUSTOM_MUTATOR
 extern size_t LLVMFuzzerMutate(uint8_t *Data, size_t Size, size_t MaxSize);
@@ -78,7 +62,7 @@ extern size_t LLVMFuzzerCustomMutator(uint8_t *Data, size_t Size,
         uint8_t ip_hl_in_bytes = ip_hl * 4; /* header length */
 
         uint8_t *start_of_tcp = ip_data + ip_hl_in_bytes;
-        uint16_t tcp_size = (total length - ip_hl_in_bytes);
+        uint16_t tcp_size = (total_length - ip_hl_in_bytes);
 
         // The size inside the packet can't be trusted, if it is too big it can
         // lead to heap overflows in the fuzzing code.

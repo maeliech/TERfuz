@@ -20,7 +20,8 @@ endif
 deps = [glib_dep, libslirp_dep, platform_deps]
 
 exes = [['fuzz-ip-header', ['slirp_fuzz_ip_header.c', 'helper.c']],
-        ['fuzz-udp', ['slirp_fuzz_udp.c', 'helper.c']]]
+        ['fuzz-udp', ['slirp_fuzz_udp.c', 'helper.c']],
+        ['fuzz-tcp', ['slirp_fuzz_tcp.c', 'helper.c']]]
 
 if fuzzer_build
   foreach exe : exes

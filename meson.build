@@ -1,11 +1,11 @@
 project('libslirp', 'c',
-  version : '4.0.0.160-4818-dirty',
+  version : '4.0.0.161-a461',
   license : 'BSD-3-Clause',
   default_options : ['warning_level=1', 'c_std=gnu99'],
   meson_version : '>= 0.50',
 )
 
-project_name = 'MyProject'
+
 
 
 version = meson.project_version()
@@ -208,5 +208,6 @@ else
     link_with: lib)
 endif
 
+project_name = 'MyProject'
 subdir('fuzzing')
 
