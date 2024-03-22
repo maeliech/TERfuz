@@ -62,7 +62,9 @@ extern size_t LLVMFuzzerCustomMutator(uint8_t *Data, size_t Size,
         uint8_t ip_hl_in_bytes = ip_hl * 4; /* header length */
 
         uint8_t *start_of_tcp = ip_data + ip_hl_in_bytes;
-        uint16_t tcp_size = (total_length - ip_hl_in_bytes);
+        uint16_t tcp_size =
+            (MaxSize -
+             ip_hl_in_bytes); /* total length -> current size? max size? */
 
         // The size inside the packet can't be trusted, if it is too big it can
         // lead to heap overflows in the fuzzing code.
